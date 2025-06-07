@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flexpack Instant Quote</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; background: #f9f9f9; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    h2 { text-align: center; color: #2c3e50; }
+    label, select, input, button { display: block; width: 100%; margin-top: 15px; font-size: 16px; }
+    input, select { padding: 8px; border-radius: 5px; border: 1px solid #ccc; }
+    button { padding: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+    button:hover { background: #0056b3; }
+    .result { margin-top: 25px; font-size: 18px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 0 5px rgba(0,0,0,0.05); }
+    .download-btn { background: #28a745; margin-top: 10px; }
+    .product-image {
+      width: 100px;
+      height: 100px;
+      margin: 10px auto;
+      display: block;
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      border: 1px dashed #ccc;
+    }
+  </style>
+  <!-- jsPDF Library for PDF Generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+  <h2>📦 Flexpack Instant Quote</h2>
+
+  <label>Choose Packaging Type:
+    <select id="product">
+      <option value="fries">Fries Box</option>
+      <option value="burger">Burger Box</option>
+      <option value="sushi">Sushi Box</option>
+      <option value="125x83x40">Small Box</option>
+      <option value="150x100x50">Medium Box</option>
+      <option value="175x110x60">Large Box</option>
+      <option value="225x153x65">XL Box</option>
+    </select>
+  </label>
+
+  <div class="product-image" id="productImage"></div>
+
+  <label>Quantity:
+    <input type="number" id="quantity" placeholder="e.g. 1000" min="1" max="100000">
+  </label>
+
+  <label>Choose Price Type:
+    <select id="priceType">
+      <option value="print">With Printing</option>
+      <option value="plain">Without Printing</option>
+    </select>
+  </label>
+
+  <button onclick="generateQuote()">Get My Quote</button>
+
+  <div class="result" id="output"></div>
+  <button class="download-btn" onclick="generatePDF()" style="display:none">Download Professional Invoice (PDF)</button>
+
+  <script>
+    // Quote data storage
+    let quoteData = {
+      product: "",
+      qty: 0,
+      type: "",
+      total: 0,
+      unitPrice: 0,
+      delivery: 0
+    };
+
+    function getProfitRate(qty) {
+      if (qty <= 1000) return 1.0;
+      if (qty <= 2000) return 0.7;
+      if (qty <= 5000) return 0.5;
+      return 0.3;
+    }
+
+    function getBaseCost(product, withPrint) {
+      const baseTable = {
+        'fries': 0.38,
+        'burger': 0.55,
+        'sushi': 1.3,
+        '125x83x40': 0.45,
+        '150x100x50': 0.65,
+        '175x110x60': 0.65,
+        '225x153x65': 1.1
+      };
+      let cost = baseTable[product];
+      if (withPrint) cost += 0.8;
+      return cost;
+    }
+
+    function generateQuote() {
+      const product = document.getElementById("product").value;
+      const qty = parseInt(document.getElementById("quantity").value);
+      const withPrint = document.getElementById("priceType").value === 'print';
+
+      if (!qty || qty <= 0 || qty > 100000) {
+        document.getElementById("output").innerHTML = "❌ Please enter a valid quantity between 1 and 100,000";
+        return;
+      }
+
+      const baseCost = getBaseCost(product, withPrint);
+      const margin = getProfitRate(qty);
+      const totalCost = qty * baseCost * (1 + margin);
+      const unitPrice = totalCost / qty;
+      const deliveryDays = qty <= 2000 ? 7 : qty <= 5000 ? 14 : 21;
+
+      // Store quote data
+      quoteData = {
+        product: product,
+        qty: qty,
+        type: withPrint ? 'Printed & Laminated' : 'Plain',
+        total: totalCost,
+        unitPrice: unitPrice,
+        delivery: deliveryDays
+      };
+
+      document.getElementById("output").innerHTML = `
+        ✅ Quote for <strong>${qty}</strong> pieces of <strong>${product}</strong><br><br>
+        💰 <strong>Total Price:</strong> ${totalCost.toLocaleString('en-US', { style: 'currency', currency: 'MAD' })}<br>
+        🧾 <strong>Unit Price:</strong> ${unitPrice.toLocaleString('en-US', { style: 'currency', currency: 'MAD', minimumFractionDigits: 3 })}<br>
+        ⏳ <strong>Delivery Estimate:</strong> ${deliveryDays} business days
+      `;
+
+      document.querySelector(".download-btn").style.display = "block";
+    }
+
+    function generatePDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      // Company Header
+      doc.setFillColor(44, 62, 80); // Dark blue
+      doc.rect(0, 0, 220, 30, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(20);
+      doc.text("FLEXPACK", 105, 20, { align: 'center' });
+
+      // Invoice Title
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(16);
+      doc.text("OFFICIAL QUOTATION", 105, 45, { align: 'center' });
+
+      // Client Info (sample - you can customize)
+      doc.setFontSize(10);
+      doc.text("Client: Your Company Name", 15, 60);
+      doc.text("Date: " + new Date().toLocaleDateString(), 15, 70);
+
+      // Quote Details Table
+      doc.autoTable({
+        startY: 80,
+        head: [['Description', 'Details']],
+        body: [
+          ['Product Type', quoteData.product],
+          ['Quantity', quoteData.qty + ' pcs'],
+          ['Packaging', quoteData.type],
+          ['Unit Price', quoteData.unitPrice.toFixed(3) + ' MAD'],
+          ['Total Price', quoteData.total.toFixed(2) + ' MAD'],
+          ['Delivery Estimate', quoteData.delivery + ' business days']
+        ],
+        theme: 'grid',
+        headStyles: { fillColor: [44, 62, 80] }
+      });
+
+      // Footer
+      doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
+      doc.text("Thank you for choosing Flexpack!", 105, 280, { align: 'center' });
+      doc.text("Contact: contact@flexpack.com | Phone: +212 123 456 789", 105, 285, { align: 'center' });
+
+      // Save PDF
+      doc.save(`Flexpack_Quote_${new Date().getTime()}.pdf`);
+    }
+
+    // Show product image (placeholder)
+    const productImages = {
+      'fries': 'url(https://via.placeholder.com/100?text=Fries+Box)',
+      'burger': 'url(https://via.placeholder.com/100?text=Burger+Box)',
+      'sushi': 'url(https://via.placeholder.com/100?text=Sushi+Box)',
+      '125x83x40': 'url(https://via.placeholder.com/100?text=Small+Box)',
+      '150x100x50': 'url(https://via.placeholder.com/100?text=Medium+Box)',
+      '175x110x60': 'url(https://via.placeholder.com/100?text=Large+Box)',
+      '225x153x65': 'url(https://via.placeholder.com/100?text=XL+Box)'
+    };
+    
+    document.getElementById('product').addEventListener('change', function() {
+      document.getElementById('productImage').style.backgroundImage = 
+        productImages[this.value] || 'none';
+    });
+  </script>
+</body>
+</html>
